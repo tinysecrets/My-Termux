@@ -24,14 +24,14 @@ all stored locally on your phone, all free.
 │ last answer: Use json.loads on the string:                                 │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─────────────────────────────────── next ───────────────────────────────────╮
-│  1.   resume                                                               │
+│  1.   hey — voice coding companion                                         │
+│       Start Nova, your voice coding companion (auto-heals errors).         │
+│  2.   resume                                                               │
 │       Pick up your last conversation with full history.  (Open session #12)│
-│  2.   sync                                                                 │
-│       Review them, then commit and push.  (proj has uncommitted changes.)  │
 │  3.   ask "work on: finish the export command"                             │
 │       Hand the next one to the agent.  (2 pending task(s).)                │
 ╰────────────────────────────────────────────────────────────────────────────╯
-commands: chat  ask  now  resume  menu  fix  · menu for everything else
+commands: hey  chat  ask  now  resume  menu  fix  · menu for everything else
 ```
 
 ## Features
@@ -45,19 +45,36 @@ commands: chat  ask  now  resume  menu  fix  · menu for everything else
 - **Tab-completion** for every command and subcommand. On a phone keyboard this
   is the difference between using the tool and not.
 - **Named commands** instead of a bare terminal:
-  `termux`, `start`, `now`, `chat`, `ask`, `resume`, `menu`, `status`, `dev`,
-  `scan`, `sync`, `fix`, `export`, `import`, `media`, `cloud`.
+  `termux`, `start`, `now`, `hey`, `flow`, `chat`, `ask`, `clip`, `run`,
+  `companion`, `resume`, `menu`, `status`, `dev`, `scan`, `sync`, `fix`,
+  `export`, `import`, `media`, `cloud`.
   Legacy `my-` prefixed names (`my-chat`, `my-menu`, …) still work.
+- **💫 `hey` — flagship voice coding companion** — hands-free, talk start to finish,
+  it codes, runs, and **fixes its own mistakes**. No more "it should work" — it
+  verifies. Uses `termux-speech-to-text` → agent → `termux-tts-speak` when
+  Termux:API is available, falls back to text in CI/laptop. Personality: Nova,
+  your secret-admirer bestie who is ride-or-die and never leaves broken code.
+- **`flow` — continuous talk-coding** — same engine as `hey` but text-first,
+  for when you want to just keep talking and building.
+- **`run` — self-healing runner** — `run "python app.py"` auto-installs missing
+  pip/pkg deps, retries, and tells you what it fixed. No more `ModuleNotFoundError`
+  dead-ends.
+- **`clip` — clipboard agent** — copy anything, run `clip`, and it figures out
+  what to do: explain code, run it, summarize text, etc.
+- **`companion` — persona engine** — `companion list` / `set nova|bestie|partner|focus`.
+  Nova is default: girl-lane, secret-admirer, partner energy. Stored in config,
+  injected into every agent turn.
 - **One-shot `ask`** — `ask "what does this repo do?"` runs a full agent turn
   and exits. No REPL, ideal for a phone.
 - **Free OpenRouter routing** with automatic fallback across free models
   (`deepseek/deepseek-chat-v3.1:free` → `google/gemini-2.0-flash-exp:free` →
   `meta-llama/llama-3.3-70b-instruct:free` → `openrouter/auto`).
 - **Real agent brain** (not just a chatbot): visible `<think>` reasoning, self-directed
-  tool use — `shell`, `read_file`, `write_file`, `list_dir`, `scan_project`, `git`,
-  `media_list`, `add_task`, `add_goal`, `notify`, `web_search`, `finish`. Multi-hop
-  loop up to `MYTERMUX_AGENT_MAX_HOPS` (default 6). Dangerous shell / protected file
-  writes ask you to confirm.
+  tool use — `shell`, `exec_heal`, `read_file`, `write_file`, `list_dir`,
+  `scan_project`, `git`, `media_list`, `clipboard`, `speak`, `see`, `companion`,
+  `add_task`, `add_goal`, `notify`, `web_search`, `finish`. Multi-hop
+  loop up to `MYTERMUX_AGENT_MAX_HOPS` (default 6, 10 in `hey` mode). Dangerous
+  shell / protected file writes ask you to confirm.
 - **Local SQLite memory** for sessions, goals, tasks, logs, repairs and projects.
 - **Proactive planner** that reads your *phone*, not just your files: low battery
   promotes `export session`, low storage promotes `fix`, a dirty repo promotes
@@ -135,8 +152,13 @@ Uninstall with `bash uninstall.sh` (asks before deleting data).
 | `termux`            | Dashboard: banner + status + next actions. `--quick` skips self-heal  |
 | `start`             | Full startup: self-heal (if stale) then dashboard — what `.bashrc` runs |
 | `now`               | Instant status card. No heal, no pip probe, no network                |
+| `hey`               | **Flagship**: hands-free voice coding companion, auto-heals errors    |
+| `flow`              | Continuous talk-coding session (text mode, same engine as hey)        |
 | `chat`              | Interactive agent chat (streaming, thinking, tools)                   |
 | `ask "QUESTION"`    | **One-shot**: run one agent turn, print the answer, exit              |
+| `clip`              | Clipboard agent — act on what you copied                              |
+| `run "CMD"`         | Run with auto-heal: fixes missing deps itself                         |
+| `companion`         | Companion persona: `list`, `set nova|bestie|partner|focus`, `status`  |
 | `resume`            | Resume the last chat session (with full history)                      |
 | `menu`              | Numeric guided menu (settings, scan, sync, fix, export…)              |
 | `status`            | Same status card as the dashboard, no banner                          |
@@ -246,6 +268,7 @@ current_project: /data/data/com.termux/files/home/projects/foo
 auto_dashboard: true
 notifications: true
 theme: dark
+companion_persona: nova                  # nova|bestie|partner|focus
 cloudinary_cloud_name: ""                # optional, for `my-cloud`
 cloudinary_api_key: ""
 cloudinary_api_secret: ""

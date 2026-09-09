@@ -23,7 +23,12 @@ commands inside chat:
   /quit or /q    exit chat
 
 outside chat, from the shell:
+  hey            hands-free voice coding companion (Nova) — flagship
+  flow           continuous talk-coding (text mode)
   ask "..."      one-shot question — no REPL, prints the answer and exits
+  clip           clipboard agent — act on what you copied
+  run "CMD"      run with auto-heal — fixes missing deps itself
+  companion      list/set your companion persona (nova|bestie|partner|focus)
   now            instant status card
   dev            battery / storage / termux-api state
 """

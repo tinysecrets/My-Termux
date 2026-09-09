@@ -22,23 +22,28 @@ else
     norm="${self#my-}"          # my-chat -> chat
     case "$norm" in
         termux|termux-dispatch|mytermux|mytermux-dispatch|my-termux|dashboard) sub="dashboard" ;;
-        start)   sub="start" ;;
-        now)     sub="now" ;;
-        chat)    sub="chat" ;;
-        ask)     sub="ask" ;;
-        resume)  sub="resume" ;;
-        menu)    sub="menu" ;;
-        status)  sub="status" ;;
-        dev)     sub="dev" ;;
-        scan)    sub="scan" ;;
-        sync)    sub="sync" ;;
-        fix)     sub="fix" ;;
-        export)  sub="export" ;;
-        import)  sub="import" ;;
-        media)   sub="media" ;;
-        cloud)   sub="cloud" ;;
-        upgrade) sub="upgrade" ;;
-        help)    sub="help" ;;
+        start)     sub="start" ;;
+        now)       sub="now" ;;
+        hey)       sub="hey" ;;
+        flow)      sub="flow" ;;
+        chat)      sub="chat" ;;
+        ask)       sub="ask" ;;
+        clip)      sub="clip" ;;
+        run)       sub="run" ;;
+        companion) sub="companion" ;;
+        resume)    sub="resume" ;;
+        menu)      sub="menu" ;;
+        status)    sub="status" ;;
+        dev)       sub="dev" ;;
+        scan)      sub="scan" ;;
+        sync)      sub="sync" ;;
+        fix)       sub="fix" ;;
+        export)    sub="export" ;;
+        import)    sub="import" ;;
+        media)     sub="media" ;;
+        cloud)     sub="cloud" ;;
+        upgrade)   sub="upgrade" ;;
+        help)      sub="help" ;;
         *)
             # An unknown name should say so, not silently print a dashboard.
             printf '%s\n' "my-termux: unknown command '$self'." >&2
@@ -55,7 +60,7 @@ export PYTHONPATH="$APP_DIR:${PYTHONPATH:-}"
 # `termux help` must work too — not just bare `termux`.
 if [ "$sub" = "dashboard" ] && [ "$#" -gt 0 ]; then
     case "$1" in
-        dashboard|start|now|chat|ask|resume|menu|status|dev|scan|sync|fix|export|import|media|cloud|upgrade|help)
+        dashboard|start|now|hey|flow|chat|ask|clip|run|companion|resume|menu|status|dev|scan|sync|fix|export|import|media|cloud|upgrade|help)
             sub="$1"
             shift
             ;;

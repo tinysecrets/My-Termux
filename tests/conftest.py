@@ -29,7 +29,9 @@ def isolated_home(tmp_path, monkeypatch):
                  "mytermux.export", "mytermux.heal", "mytermux.planner",
                  "mytermux.memory", "mytermux.openrouter", "mytermux.ui",
                  "mytermux.chat", "mytermux.menu", "mytermux.cli",
-                 "mytermux.device", "mytermux.startup", "mytermux.media"):
+                 "mytermux.device", "mytermux.startup", "mytermux.media",
+                 "mytermux.companion", "mytermux.voice", "mytermux.runner",
+                 "mytermux.tools_agent", "mytermux.agent"):
         if name in sys.modules:
             importlib.reload(sys.modules[name])
     paths.ensure_dirs()

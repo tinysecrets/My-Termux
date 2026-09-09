@@ -119,8 +119,8 @@ COMMANDS="$(PYTHONPATH="$APP_DIR" python -c \
     'from mytermux.commands import installed_names; print(" ".join(installed_names()))' 2>/dev/null || true)"
 if [ -z "$COMMANDS" ]; then
     warn "could not read the command list from the package; using the built-in fallback"
-    COMMANDS="termux start now chat ask resume menu status dev scan sync fix export import media cloud upgrade help
-termux my-start my-now my-chat my-ask my-resume my-menu my-status my-dev my-scan my-sync my-fix my-export my-import my-media my-cloud my-upgrade
+    COMMANDS="termux start now hey flow chat ask clip run companion resume menu status dev scan sync fix export import media cloud upgrade help
+termux my-start my-now my-hey my-flow my-chat my-ask my-clip my-run my-companion my-resume my-menu my-status my-dev my-scan my-sync my-fix my-export my-import my-media my-cloud my-upgrade
 start-my-termux"
 fi
 for c in $COMMANDS; do

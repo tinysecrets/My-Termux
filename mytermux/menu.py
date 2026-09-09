@@ -62,7 +62,30 @@ def run() -> int:
         _, action = MENU_ITEMS[idx]
         if action == "exit":
             return 0
-        if action == "chat":
+        if action == "hey":
+            from . import cli
+            import argparse
+            # launch hey in text mode from menu (since menu itself is text)
+            cli.cmd_hey(argparse.Namespace(persona=None, text=True, once=False, no_tts=False, prompt=[]))
+        elif action == "flow":
+            from . import cli
+            import argparse
+            cli.cmd_flow(argparse.Namespace(persona=None, no_tts=False, prompt=[]))
+        elif action == "clip":
+            from . import cli
+            import argparse
+            cli.cmd_clip(argparse.Namespace(text=[], instruction=""))
+        elif action == "run":
+            from . import cli
+            q = prompt("command to run with auto-heal")
+            if q:
+                import argparse
+                cli.cmd_run(argparse.Namespace(cmd_parts=[q], no_heal=False, attempts=3, cwd="."))
+        elif action == "companion":
+            from . import cli
+            import argparse
+            cli.cmd_companion(argparse.Namespace(action="status", name=""))
+        elif action == "chat":
             chat.run()
         elif action == "resume":
             chat.run(resume=True)

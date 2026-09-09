@@ -144,6 +144,17 @@ def vibrate(ms: int = 200) -> bool:
 
 # ---- aggregate snapshot -----------------------------------------------------
 
+def voice_capabilities() -> Dict[str, bool]:
+    """Check which voice features are available (never raises)."""
+    return {
+        "stt": shutil.which("termux-speech-to-text") is not None,
+        "tts": shutil.which("termux-tts-speak") is not None,
+        "mic": shutil.which("termux-microphone-record") is not None,
+        "camera": shutil.which("termux-camera-photo") is not None,
+        "clipboard": shutil.which("termux-clipboard-get") is not None,
+    }
+
+
 def snapshot(use_cache: bool = True, ttl: int = 120) -> Dict[str, Any]:
     """One dict describing the device, safe to call on every startup."""
     if use_cache:
@@ -159,6 +170,7 @@ def snapshot(use_cache: bool = True, ttl: int = 120) -> Dict[str, Any]:
         "battery": battery(use_cache=use_cache),
         "storage": storage(),
         "width": screen_width(),
+        "voice": voice_capabilities(),
     }
     _cache_write("snapshot", snap)
     return snap

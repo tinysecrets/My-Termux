@@ -314,9 +314,14 @@ def dashboard(show_banner: bool = True, ctx: Optional[Dict[str, Any]] = None) ->
 
 
 MENU_ITEMS = [
+    ("💫 Hey — voice coding companion (NEW)", "hey"),
+    ("Flow — continuous talk-coding", "flow"),
     ("Chat with agent", "chat"),
     ("Resume last session", "resume"),
     ("Ask one question and exit", "ask"),
+    ("Clipboard agent — act on copied text", "clip"),
+    ("Run with auto-heal", "run"),
+    ("Companion persona", "companion"),
     ("Scan a project", "scan"),
     ("GitHub sync (status)", "sync"),
     ("Run self-heal", "fix"),

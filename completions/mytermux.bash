@@ -36,22 +36,35 @@ _mytermux_complete() {
                 COMPREPLY=( $(compgen -W "session config project" -- "$cur") )
                 return 0
                 ;;
+            companion)
+                COMPREPLY=( $(compgen -W "list set status nova bestie partner focus" -- "$cur") )
+                return 0
+                ;;
             sync)
                 COMPREPLY=( $(compgen -W "--pull --commit --push" -- "$cur") )
                 return 0
                 ;;
+            hey|flow)
+                COMPREPLY=( $(compgen -W "--text --once --no-tts --persona nova bestie partner focus" -- "$cur") )
+                return 0
+                ;;
+            run)
+                COMPREPLY=( $(compgen -W "--no-heal --attempts --cwd" -- "$cur") )
+                return 0
+                ;;
+            clip)
+                COMPREPLY=( $(compgen -W "--instruction -i" -- "$cur") )
+                return 0
+                ;;
             termux|dashboard)
                 COMPREPLY=( $(compgen -W "--quick \
-now chat ask resume menu status dev scan sync fix export import media cloud help" -- "$cur") )
+hey flow now chat ask clip run companion resume menu status dev scan sync fix export import media cloud help" -- "$cur") )
                 return 0
                 ;;
             start)
-                # `start` takes no arguments; the MYTERMUX_QUICK env var is the
-                # switch for skipping the heal probe on shell start
                 return 0
                 ;;
         esac
-        # scan / ask / etc. take a path or free text
         COMPREPLY=( $(compgen -f -- "$cur") )
         return 0
     fi
@@ -74,6 +87,14 @@ now chat ask resume menu status dev scan sync fix export import media cloud help
             COMPREPLY=( $(compgen -W "--force --also-local --limit" -- "$cur") )
             return 0
             ;;
+        hey|flow)
+            COMPREPLY=( $(compgen -W "--text --once --no-tts --persona" -- "$cur") )
+            return 0
+            ;;
+        run)
+            COMPREPLY=( $(compgen -f -- "$cur") )
+            return 0
+            ;;
     esac
     COMPREPLY=( $(compgen -f -- "$cur") )
     return 0
@@ -81,9 +102,9 @@ now chat ask resume menu status dev scan sync fix export import media cloud help
 
 # canonical names
 complete -F _mytermux_complete \
-    termux start now chat ask resume menu status dev scan sync fix export import media cloud
+    termux start now hey flow chat ask clip run companion resume menu status dev scan sync fix export import media cloud
 
 # legacy `my-` prefixed names — still installed, still completed
 complete -F _mytermux_complete \
-    my-termux start-my-termux my-start my-now my-chat my-ask my-resume my-menu \
+    my-termux start-my-termux my-start my-now my-hey my-flow my-chat my-ask my-clip my-run my-companion my-resume my-menu \
     my-status my-dev my-scan my-sync my-fix my-export my-import my-media my-cloud

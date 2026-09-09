@@ -172,6 +172,15 @@ def next_actions(device: Dict | None = None) -> List[Dict]:
             "priority": 4,
         })
 
+    # ---- flagship: hey voice companion --------------------------------------
+    if st["api_configured"]:
+        actions.append({
+            "cmd": cmd("hey"),
+            "why": "Hands-free voice coding — just talk, it builds and fixes itself.",
+            "action": "Start Nova, your voice coding companion (auto-heals errors).",
+            "priority": 1,
+        })
+
     # ---- always-available escape hatches -----------------------------------
     if st["api_configured"]:
         actions.append({
@@ -184,6 +193,18 @@ def next_actions(device: Dict | None = None) -> List[Dict]:
             "cmd": cmd("chat"),
             "why": "You have working context.",
             "action": "Open a full agent session with tools.",
+            "priority": 6,
+        })
+        actions.append({
+            "cmd": cmd("flow"),
+            "why": "Continuous talk-coding session.",
+            "action": "Flow mode — keep talking, it keeps building.",
+            "priority": 5,
+        })
+        actions.append({
+            "cmd": cmd("clip"),
+            "why": "You have something in clipboard?",
+            "action": "Clipboard agent — act on what you copied.",
             "priority": 6,
         })
     actions.append({

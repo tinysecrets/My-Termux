@@ -205,7 +205,8 @@ def test_greeting_varies_by_hour():
 
 def test_menu_items_map_to_real_actions():
     from mytermux.ui import MENU_ITEMS
-    valid = {"chat", "resume", "ask", "scan", "sync", "fix", "dev", "export",
+    valid = {"hey", "flow", "chat", "resume", "ask", "clip", "run", "companion",
+             "scan", "sync", "fix", "dev", "export",
              "settings", "status", "exit"}
     for label, action in MENU_ITEMS:
         assert action in valid, f"menu item {label!r} has unknown action {action!r}"
@@ -213,8 +214,16 @@ def test_menu_items_map_to_real_actions():
 
 def test_menu_run_handles_ask_and_dev(monkeypatch, capsys):
     from mytermux import menu
+    from mytermux.ui import MENU_ITEMS
 
-    answers = iter(["3", "", "7", "11"])
+    # Find indices dynamically so test survives menu reordering
+    def idx_of(action):
+        for i, (_, a) in enumerate(MENU_ITEMS, 1):
+            if a == action:
+                return str(i)
+        raise ValueError(f"action {action!r} not in MENU_ITEMS")
+
+    answers = iter([idx_of("ask"), "", idx_of("dev"), idx_of("exit")])
     monkeypatch.setattr(menu, "prompt", lambda msg, default="": next(answers))
     ran = []
     monkeypatch.setattr(menu, "chat", type("C", (), {"run": staticmethod(lambda **k: ran.append("chat"))}))
