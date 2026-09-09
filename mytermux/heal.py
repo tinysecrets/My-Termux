@@ -1,4 +1,4 @@
-"""Self-heal / diagnostics — runs on startup and via `my-fix`."""
+"""Self-heal / diagnostics — runs on startup and via `fix`."""
 from __future__ import annotations
 
 import json
@@ -132,19 +132,26 @@ def _repair_pip() -> bool:
     if not to_install:
         return True
     try:
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--upgrade", *to_install],
-            check=False, timeout=240,
+        # Captured on purpose: this runs during shell startup, so letting pip
+        # write to the user's terminal means a wall of output every time an
+        # optional package is missing. Failures are recorded in the repair log.
+        proc = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--quiet", "--upgrade", *to_install],
+            check=False, timeout=240, capture_output=True, text=True,
         )
-        # success is measured by required only
+        # success is measured by required packages only — optional ones may
+        # legitimately be unavailable (no compiler, no network, locked env)
         for pkg in REQUIRED_PY_PACKAGES:
             mod = "yaml" if pkg == "yaml" else pkg
             try:
                 __import__(mod)
             except Exception:
+                db.add_repair("install_missing_pip", "fail",
+                              (proc.stderr or proc.stdout or "")[-500:])
                 return False
         return True
-    except Exception:
+    except Exception as e:
+        db.add_repair("install_missing_pip", "fail", f"{type(e).__name__}: {e}")
         return False
 
 

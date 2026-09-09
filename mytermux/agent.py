@@ -96,8 +96,28 @@ STYLE:
 """
 
 
+def _companion_prompt() -> str:
+    try:
+        from . import companion as comp_mod
+        persona = comp_mod.get_persona()
+        return f"\n\nCOMPANION PERSONA ({persona['name']}): {persona['system_addition']}\n"
+    except Exception:
+        return ""
+
+
 def build_system() -> str:
-    return AGENT_SYSTEM_PROMPT.replace("{TOOLS}", describe_tools())
+    base = AGENT_SYSTEM_PROMPT.replace("{TOOLS}", describe_tools())
+    # Inject companion vibe + self-heal mandate
+    extra = _companion_prompt()
+    extra += (
+        "\n\nSELF-HEAL MANDATE: You MUST run code you write and verify it works. "
+        "Use exec_heal tool instead of shell when running Python/Node/etc. "
+        "If a run fails, fix it automatically — install missing packages, correct syntax, "
+        "create missing dirs — and re-run until it passes. Never leave broken code. "
+        "Never say 'it should work' without testing. "
+        "If you fixed something, tell the user what you fixed in your final answer.\n"
+    )
+    return base + extra
 
 
 def build_messages(conv: Conversation, user_text: str) -> List[Dict]:

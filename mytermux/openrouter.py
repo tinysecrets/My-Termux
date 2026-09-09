@@ -40,6 +40,16 @@ def _headers(api_key: str, title: str) -> dict:
 def _parse_error(resp) -> tuple:
     retry_after = resp.headers.get("Retry-After") if hasattr(resp, "headers") else None
     try:
+        # We are inside `client.stream(...)`, so the body is NOT buffered yet.
+        # Without this read, .json()/.text raise ResponseNotRead and the real
+        # OpenRouter message ("quota exceeded", "payment required", …) is
+        # silently replaced with "unknown error" — which is useless on a phone.
+        read = getattr(resp, "read", None)
+        if callable(read):
+            try:
+                read()
+            except Exception:
+                pass
         body = resp.json()
         err = body.get("error", {})
         code = err.get("code", resp.status_code)
@@ -47,7 +57,7 @@ def _parse_error(resp) -> tuple:
     except Exception:
         code = getattr(resp, "status_code", 500)
         try:
-            msg = resp.text
+            msg = resp.text or "unknown error"
         except Exception:
             msg = "unknown error"
     return code, msg, retry_after
@@ -117,14 +127,14 @@ def chat_stream(messages: list, on_delta: Optional[Callable[[str], None]] = None
         import httpx  # type: ignore
     except ImportError as e:
         raise RuntimeError(
-            "httpx is not installed. Run `my-fix` or `pip install httpx`."
+            "httpx is not installed. Run `fix` or `pip install httpx`."
         ) from e
 
     cfg = load_config()
     api_key = (cfg.get("openrouter_api_key") or "").strip()
     if not api_key:
         raise RuntimeError(
-            "No OpenRouter API key set. Run `my-menu` → Settings, or edit "
+            "No OpenRouter API key set. Run `menu` → Settings, or edit "
             "~/my-termux/config/config.yaml"
         )
     title = cfg.get("openrouter_title", "my-termux")

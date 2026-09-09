@@ -38,7 +38,7 @@ def _sdk():
     except Exception as e:
         raise CloudNotConfigured(
             "cloudinary SDK not installed. Run `pip install cloudinary` "
-            "or `my-fix` to auto-install."
+            "or `fix` to auto-install."
         ) from e
 
 
@@ -49,7 +49,7 @@ def _configured():
     secret = (cfg.get("cloudinary_api_secret") or "").strip()
     if not (cloud and key and secret):
         raise CloudNotConfigured(
-            "Cloudinary not configured. Run `my-cloud setup` or edit "
+            "Cloudinary not configured. Run `cloud setup` or edit "
             "~/my-termux/config/config.yaml (cloudinary_cloud_name / "
             "cloudinary_api_key / cloudinary_api_secret)."
         )

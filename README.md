@@ -7,39 +7,85 @@ GitHub, thinks ahead about your next steps, and repairs itself when it breaks �
 all stored locally on your phone, all free.
 
 ```
-   ┌────────────────────────────────────────────────────────────┐
-   │   my-termux  ~/projects/foo $                              │
-   │   ✓ OpenRouter API   ✓ GitHub    ~ current project         │
-   │   ✓ last session #12 (2 unfinished tasks)                  │
-   │                                                            │
-   │   next steps:                                              │
-   │     1. resume     → continue what you were doing          │
-   │     2. scan .     → refresh project state                 │
-   │     3. chat       → ask the agent anything                │
-   └────────────────────────────────────────────────────────────┘
+╭────────────────────────────────────────────────────────────────────────────╮
+│   good afternoon  ·  Wed 09 Sep 14:22  ·  78% ▓▓▓▓▓▓▓░░░  ·  41.2G free    │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭────────────────────────────────── status ──────────────────────────────────╮
+│  OpenRouter API           ok             deepseek-chat-v3.1                │
+│  GitHub token             ok             tester                            │
+│  Project                  git            proj  (master · dirty)            │
+│  Sessions                 ok             #12 of 12                         │
+│  Pending tasks            ok             2                                 │
+│  Media vault              ok             7 item(s)                         │
+│  Disk free                ok             41.2G                             │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭───────────────────────────── since last time ──────────────────────────────╮
+│ 2 sessions, 14 messages since 3h ago                                       │
+│ last answer: Use json.loads on the string:                                 │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────────── next ───────────────────────────────────╮
+│  1.   hey — voice coding companion                                         │
+│       Start Nova, your voice coding companion (auto-heals errors).         │
+│  2.   resume                                                               │
+│       Pick up your last conversation with full history.  (Open session #12)│
+│  3.   ask "work on: finish the export command"                             │
+│       Hand the next one to the agent.  (2 pending task(s).)                │
+╰────────────────────────────────────────────────────────────────────────────╯
+commands: hey  chat  ask  now  resume  menu  fix  · menu for everything else
 ```
 
 ## Features
 
-- **Branded launch** — custom banner, `my-termux` prompt, status dashboard on every open.
+- **A launch that is worth looking at** — battery + charge state, free storage,
+  git state of your current project, what changed since you last opened it, and
+  next steps you can copy-paste. Width-aware: it renders properly in portrait
+  (~50 cols) as well as landscape.
+- **Fast startup** — self-heal runs at most once per 12 h and is replayed from
+  cache otherwise, so opening a shell stays instant.
+- **Tab-completion** for every command and subcommand. On a phone keyboard this
+  is the difference between using the tool and not.
 - **Named commands** instead of a bare terminal:
-  `termux`, `start`, `chat`, `menu`, `status`, `scan`,
-  `sync`, `fix`, `export`, `resume`.
+  `termux`, `start`, `now`, `hey`, `flow`, `chat`, `ask`, `clip`, `run`,
+  `companion`, `resume`, `menu`, `status`, `dev`, `scan`, `sync`, `fix`,
+  `export`, `import`, `media`, `cloud`.
+  Legacy `my-` prefixed names (`my-chat`, `my-menu`, …) still work.
+- **💫 `hey` — flagship voice coding companion** — hands-free, talk start to finish,
+  it codes, runs, and **fixes its own mistakes**. No more "it should work" — it
+  verifies. Uses `termux-speech-to-text` → agent → `termux-tts-speak` when
+  Termux:API is available, falls back to text in CI/laptop. Personality: Nova,
+  your secret-admirer bestie who is ride-or-die and never leaves broken code.
+- **`flow` — continuous talk-coding** — same engine as `hey` but text-first,
+  for when you want to just keep talking and building.
+- **`run` — self-healing runner** — `run "python app.py"` auto-installs missing
+  pip/pkg deps, retries, and tells you what it fixed. No more `ModuleNotFoundError`
+  dead-ends.
+- **`clip` — clipboard agent** — copy anything, run `clip`, and it figures out
+  what to do: explain code, run it, summarize text, etc.
+- **`companion` — persona engine** — `companion list` / `set nova|bestie|partner|focus`.
+  Nova is default: girl-lane, secret-admirer, partner energy. Stored in config,
+  injected into every agent turn.
+- **One-shot `ask`** — `ask "what does this repo do?"` runs a full agent turn
+  and exits. No REPL, ideal for a phone.
 - **Free OpenRouter routing** with automatic fallback across free models
   (`deepseek/deepseek-chat-v3.1:free` → `google/gemini-2.0-flash-exp:free` →
   `meta-llama/llama-3.3-70b-instruct:free` → `openrouter/auto`).
 - **Real agent brain** (not just a chatbot): visible `<think>` reasoning, self-directed
-  tool use — `shell`, `read_file`, `write_file`, `list_dir`, `scan_project`, `git`,
-  `media_list`, `add_task`, `add_goal`, `notify`, `web_search`, `finish`. Multi-hop
-  loop up to `MYTERMUX_AGENT_MAX_HOPS` (default 6). Dangerous shell / protected file
-  writes ask you to confirm.
+  tool use — `shell`, `exec_heal`, `read_file`, `write_file`, `list_dir`,
+  `scan_project`, `git`, `media_list`, `clipboard`, `speak`, `see`, `companion`,
+  `add_task`, `add_goal`, `notify`, `web_search`, `finish`. Multi-hop
+  loop up to `MYTERMUX_AGENT_MAX_HOPS` (default 6, 10 in `hey` mode). Dangerous
+  shell / protected file writes ask you to confirm.
 - **Local SQLite memory** for sessions, goals, tasks, logs, repairs and projects.
-- **Proactive planner** — suggests 2–4 concrete next actions after each activity.
+- **Proactive planner** that reads your *phone*, not just your files: low battery
+  promotes `export session`, low storage promotes `fix`, a dirty repo promotes
+  `sync`. Every suggestion is guaranteed to be an installed command.
 - **Self-heal** — startup diagnostics + safe auto-repair, with backups.
 - **GitHub over PAT** — clone, status, pull, commit, push right from the CLI.
 - **Project scanner** that detects Python / Node / Rust / Go / Java / etc.
 - **Android-visible exports** to `/sdcard/MyTermux/exports/` (sessions, config, whole projects).
 - **Termux notifications** via `termux-notification` (stub for future WhatsApp/SMS hooks).
+- **Degrades instead of breaking** — no `rich`, no `termux-api`, no network, or
+  not even Android: every probe returns a dash and the dashboard still renders.
 
 ## Install (Termux, phone only)
 
@@ -71,17 +117,30 @@ media add ~/storage/shared/DCIM/Camera/IMG_<TAB>     # Tab auto-completes
 
 ### What the installer does
 
-### What the installer does
-
 1. Installs `python`, `git`, `termux-api`.
 2. Copies source to `~/my-termux/app/`.
-3. Creates `~/my-termux/{projects,sessions,logs,config,backups}`.
+3. Creates `~/my-termux/{projects,sessions,logs,config,backups,cache}`.
 4. Runs `termux-setup-storage` and links `/sdcard/MyTermux/exports/`.
-5. `pip install httpx rich pyyaml`.
-6. Installs global commands into `$PREFIX/bin/` (works from any folder).
-7. Adds a compact block to `~/.bashrc` — custom prompt + auto-dashboard.
+5. `pip install httpx rich pyyaml cloudinary`.
+6. Installs global commands into `$PREFIX/bin/` — the list is read from the
+   package (`mytermux.commands.installed_names()`), so it can never drift away
+   from what the dashboard tells you to type. Both canonical names (`chat`) and
+   legacy `my-` names (`my-chat`) are installed.
+7. Adds a block to `~/.bashrc`: git-aware prompt, **tab-completion** for every
+   command and subcommand, and the auto-dashboard on shell start.
 8. Runs a **first-run wizard** to save your OpenRouter key and optional GitHub PAT
    into `~/my-termux/config/config.yaml`.
+
+Environment switches for the auto-launch:
+
+| Variable | Effect |
+| --- | --- |
+| `MYTERMUX_NO_AUTOSTART=1` | don't print the dashboard when a shell opens |
+| `MYTERMUX_QUICK=1` | print it without the self-heal probe (fastest) |
+| `MYTERMUX_FORCE=1` | let `install.sh` run outside Termux (testing only) |
+
+Re-running `install.sh` **refreshes** the `~/.bashrc` block rather than skipping
+it, so upgrading also upgrades your startup hook.
 
 Skip auto-dashboard temporarily with `MYTERMUX_NO_AUTOSTART=1 bash`.
 Uninstall with `bash uninstall.sh` (asks before deleting data).
@@ -90,20 +149,36 @@ Uninstall with `bash uninstall.sh` (asks before deleting data).
 
 | Command             | What it does                                                          |
 | ------------------- | --------------------------------------------------------------------- |
-| `termux`            | Show dashboard (banner + status + proactive next actions)             |
-| `start`             | Auto-heal on boot, then dashboard                                     |
-| `chat`              | Enter interactive chat (streaming, free models)                       |
+| `termux`            | Dashboard: banner + status + next actions. `--quick` skips self-heal  |
+| `start`             | Full startup: self-heal (if stale) then dashboard — what `.bashrc` runs |
+| `now`               | Instant status card. No heal, no pip probe, no network                |
+| `hey`               | **Flagship**: hands-free voice coding companion, auto-heals errors    |
+| `flow`              | Continuous talk-coding session (text mode, same engine as hey)        |
+| `chat`              | Interactive agent chat (streaming, thinking, tools)                   |
+| `ask "QUESTION"`    | **One-shot**: run one agent turn, print the answer, exit              |
+| `clip`              | Clipboard agent — act on what you copied                              |
+| `run "CMD"`         | Run with auto-heal: fixes missing deps itself                         |
+| `companion`         | Companion persona: `list`, `set nova|bestie|partner|focus`, `status`  |
+| `resume`            | Resume the last chat session (with full history)                      |
 | `menu`              | Numeric guided menu (settings, scan, sync, fix, export…)              |
 | `status`            | Same status card as the dashboard, no banner                          |
+| `dev`               | What your phone reports: battery, temperature, storage, clipboard     |
 | `scan [PATH]`       | Scan a project, detect kind + git, register it, set current           |
 | `sync [PATH]`       | `git status`; optional `--pull`, `--commit "msg"`, `--push`           |
-| `fix`               | Run diagnostics + safe self-repair; writes JSON log in `~/my-termux/logs/` |
+| `fix`               | Diagnostics + safe self-repair; JSON log in `~/my-termux/logs/`       |
 | `export [WHAT]`     | Export `session` / `config` / `project` to `/sdcard/MyTermux/exports/` |
-| `resume`            | Resume the last chat session (with full history)                      |
+| `import WHAT PATH`  | Import a previous export                                              |
 | `media …`           | Local media vault: `add`, `list`, `info`, `open`, `rm`, `attach`, `capture`, `record` |
 | `cloud …`           | Optional Cloudinary sync: `setup`, `status`, `sync`, `up`, `pull`, `rm`, `list` |
+| `upgrade [PATH]`    | Check this app's own repo for updates                                 |
+| `termux help`       | List every command                                                    |
 
-Inside chat, slash-commands work too: `/help /new /resume /project X /goal X /task X /suggest /q`.
+Every command also works with the legacy `my-` prefix (`my-chat`, `my-menu`,
+`my-fix`, …), and `start-my-termux` is the name the shell-startup hook calls.
+The single source of truth is `mytermux/commands.py`; `install.sh`, the
+dashboard, the planner, tab-completion and the tests all read from it.
+
+Inside chat, slash-commands work too: `/help /new /resume /project X /goal X /task X /suggest /plain /agent /tools /q`.
 
 ## File & media storage
 
@@ -163,6 +238,7 @@ working locally — no network, no crash.
 ├── logs/               # repair logs (repair-YYYYMMDD-hhmmss.json)
 ├── config/config.yaml  # your API keys and preferences
 ├── backups/            # rolling config backups
+├── cache/              # startup caches (device snapshot, heal verdict, last-open)
 ├── media/              # local media vault
 │   ├── images/
 │   ├── video/
@@ -192,6 +268,7 @@ current_project: /data/data/com.termux/files/home/projects/foo
 auto_dashboard: true
 notifications: true
 theme: dark
+companion_persona: nova                  # nova|bestie|partner|focus
 cloudinary_cloud_name: ""                # optional, for `my-cloud`
 cloudinary_api_key: ""
 cloudinary_api_secret: ""
@@ -203,22 +280,6 @@ media_auto_sync: false
 Per your own recommendation, **v1 ships with local Termux notifications only**
 (`termux-notification`). A `notify` stub is exposed in `mytermux/notify.py` so
 future integrations (WhatsApp, SMS, Telegram) can be added without touching
-the rest of the codebase — just add another sender behind the same `notify()`
-call.
-
-## OpenRouter free models — recommendation
-
-Currently the best free default is `deepseek/deepseek-chat-v3.1:free` for
-reasoning/coding, with the fast `google/gemini-2.0-flash-exp:free` and
-multilingual `meta-llama/llama-3.3-70b-instruct:free` as fallbacks, and finally
-the `openrouter/auto` router. This ordered list lives in your config; edit it
-freely — the client falls back automatically on transient errors and honours
-`Retry-After` on 429s.
-
-## License
-
-MIT — do whatever you want, but don't ship your API key to anyone.
-elegram) can be added without touching
 the rest of the codebase — just add another sender behind the same `notify()`
 call.
 

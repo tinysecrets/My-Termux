@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from .paths import DB_FILE, HOME
 
@@ -222,3 +222,65 @@ def list_projects() -> list[sqlite3.Row]:
     with connect() as conn:
         cur = conn.execute("SELECT * FROM projects ORDER BY last_opened DESC")
         return list(cur.fetchall())
+
+
+# --------------------------------------------------------------------------
+# "since you were last here" — used by the startup digest.
+# created_at is ISO-8601 UTC with second precision, so lexicographic string
+# comparison is a valid chronological comparison.
+# --------------------------------------------------------------------------
+
+def count_since(table: str, since: str, where: str = "") -> int:
+    """Count rows in a timestamped table created/updated after `since`.
+
+    `table` is validated against a whitelist: it is interpolated because SQLite
+    cannot parameterise identifiers, so it must never come from user input.
+    """
+    allowed = {"sessions": "started_at", "messages": "created_at",
+               "tasks": "updated_at", "goals": "created_at", "logs": "created_at"}
+    if table not in allowed:
+        return 0
+    sql = f"SELECT COUNT(*) FROM {table} WHERE {allowed[table]} > ?"
+    params: list = [since]
+    if where:
+        sql += f" AND {where}"
+    try:
+        with connect() as conn:
+            return int(conn.execute(sql, params).fetchone()[0])
+    except sqlite3.Error:
+        return 0
+
+
+def last_message(role: str = "") -> Optional[sqlite3.Row]:
+    """Most recent message, optionally filtered by role."""
+    try:
+        with connect() as conn:
+            if role:
+                cur = conn.execute(
+                    "SELECT * FROM messages WHERE role=? ORDER BY id DESC LIMIT 1",
+                    (role,))
+            else:
+                cur = conn.execute("SELECT * FROM messages ORDER BY id DESC LIMIT 1")
+            return cur.fetchone()
+    except sqlite3.Error:
+        return None
+
+
+def totals() -> Dict[str, int]:
+    """Lifetime counts, for the dashboard's workspace row."""
+    out = {}
+    for key, sql in (
+        ("sessions", "SELECT COUNT(*) FROM sessions"),
+        ("messages", "SELECT COUNT(*) FROM messages"),
+        ("tasks_pending", "SELECT COUNT(*) FROM tasks WHERE status='pending'"),
+        ("tasks_done", "SELECT COUNT(*) FROM tasks WHERE status='done'"),
+        ("goals", "SELECT COUNT(*) FROM goals"),
+        ("projects", "SELECT COUNT(*) FROM projects"),
+    ):
+        try:
+            with connect() as conn:
+                out[key] = int(conn.execute(sql).fetchone()[0])
+        except sqlite3.Error:
+            out[key] = 0
+    return out
+

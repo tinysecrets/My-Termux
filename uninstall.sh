@@ -5,14 +5,25 @@ set -e
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 BIN_DIR="$PREFIX/bin"
 APP_HOME="$HOME/my-termux"
+APP_DIR="$APP_HOME/app"
 BASHRC="$HOME/.bashrc"
 
 echo "[Termux] removing global commands..."
-for c in termux start chat menu status scan sync fix export import resume media cloud; do
+# Ask the package for the list if it is still readable, otherwise fall back.
+COMMANDS="$(PYTHONPATH="$APP_DIR" python -c \
+    'from mytermux.commands import installed_names; print(" ".join(installed_names()))' 2>/dev/null || true)"
+if [ -z "$COMMANDS" ]; then
+    COMMANDS="termux start now hey flow chat ask clip run companion resume menu status dev scan sync fix export import media cloud upgrade help
+termux my-start my-now my-hey my-flow my-chat my-ask my-clip my-run my-companion my-resume my-menu my-status my-dev my-scan my-sync my-fix my-export my-import my-media my-cloud my-upgrade
+start-my-termux"
+fi
+removed=0
+for c in $COMMANDS; do
     if [ -L "$BIN_DIR/$c" ] || [ -f "$BIN_DIR/$c" ]; then
-        rm -f "$BIN_DIR/$c" && echo "  - $c"
+        rm -f "$BIN_DIR/$c" && removed=$((removed + 1))
     fi
 done
+echo "  - $removed command link(s) removed"
 
 echo "[my-termux] removing auto-launch block from ~/.bashrc..."
 if [ -f "$BASHRC" ]; then

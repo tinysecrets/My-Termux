@@ -10,8 +10,8 @@
 #   4. Creates data folders under ~/my-termux/.
 #   5. Requests storage permission and links Android-visible exports.
 #   6. Installs required Python packages (httpx, rich, pyyaml).
-#   7. Installs global commands into $PREFIX/bin (my-termux, my-chat, ...).
-#   8. Adds an auto-launch dashboard block to ~/.bashrc (can be disabled).
+#   7. Installs global commands into $PREFIX/bin (chat, menu, ... plus my-* aliases).
+#   8. Adds prompt + tab-completion + auto-launch dashboard to ~/.bashrc.
 #   9. Runs a first-run setup wizard to save OpenRouter key + optional GitHub PAT.
 #  10. Initialises the SQLite DB and prints the dashboard.
 
@@ -78,10 +78,14 @@ fi
 mkdir -p "$APP_DIR/bin"
 cp "$SCRIPT_DIR/bin/mytermux-dispatch" "$APP_DIR/bin/mytermux-dispatch"
 chmod +x "$APP_DIR/bin/mytermux-dispatch"
+# copy bash completions
+mkdir -p "$APP_DIR/completions"
+cp "$SCRIPT_DIR/completions/mytermux.bash" "$APP_DIR/completions/mytermux.bash"
+ok "completions copied"
 
 # ---------- 4. create data folders ----------
 say "creating data folders under $APP_HOME"
-for d in projects sessions logs config backups; do
+for d in projects sessions logs config backups cache; do
     mkdir -p "$APP_HOME/$d"
     ok "$APP_HOME/$d"
 done
@@ -108,34 +112,66 @@ python -m pip install --quiet --upgrade httpx rich pyyaml cloudinary && ok "http
 
 # ---------- 7. install global commands ----------
 say "installing commands into $BIN_DIR"
-COMMANDS=(termux start chat menu status scan sync fix export import resume media cloud)
-for c in "${COMMANDS[@]}"; do
+# Ask the package itself which names to install. This is deliberate: the
+# command list used to be duplicated here and drifted away from what the
+# dashboard printed, so every "next step" suggestion was a dead command.
+COMMANDS="$(PYTHONPATH="$APP_DIR" python -c \
+    'from mytermux.commands import installed_names; print(" ".join(installed_names()))' 2>/dev/null || true)"
+if [ -z "$COMMANDS" ]; then
+    warn "could not read the command list from the package; using the built-in fallback"
+    COMMANDS="termux start now hey flow chat ask clip run companion resume menu status dev scan sync fix export import media cloud upgrade help
+termux my-start my-now my-hey my-flow my-chat my-ask my-clip my-run my-companion my-resume my-menu my-status my-dev my-scan my-sync my-fix my-export my-import my-media my-cloud my-upgrade
+start-my-termux"
+fi
+for c in $COMMANDS; do
     ln -sf "$APP_DIR/bin/mytermux-dispatch" "$BIN_DIR/$c"
-    ok "$c"
 done
+ok "$(echo "$COMMANDS" | wc -w | tr -d ' ') commands installed (canonical + my-* aliases)"
 
-# ---------- 8. bashrc auto-launch ----------
+# ---------- 8. bashrc: prompt, completion, auto-launch ----------
 BASHRC="$HOME/.bashrc"
 MARK_BEGIN="# >>> my-termux auto-launch >>>"
 MARK_END="# <<< my-termux auto-launch <<<"
 touch "$BASHRC"
 if grep -q "$MARK_BEGIN" "$BASHRC"; then
-    ok "bashrc already contains my-termux block"
-else
-    say "adding auto-launch block to ~/.bashrc"
-    {
-        echo ""
-        echo "$MARK_BEGIN"
-        echo "# my-termux: custom prompt + dashboard on interactive shells."
-        echo "# Set MYTERMUX_NO_AUTOSTART=1 in your shell to disable the dashboard."
-        echo 'export PS1="\[\e[36m\]my-termux\[\e[0m\] \[\e[32m\]\w\[\e[0m\] $ "'
-        echo 'if [ -z "$MYTERMUX_NO_AUTOSTART" ] && [ -t 1 ] && [[ $- == *i* ]]; then'
-        echo '    start-my-termux || true'
-        echo 'fi'
-        echo "$MARK_END"
-    } >> "$BASHRC"
-    ok "auto-launch block added"
+    # Replace the block rather than skipping it, so upgrading also upgrades
+    # the startup hook. (An older block pointed at a command that was never
+    # installed, which is why the dashboard silently stopped appearing.)
+    say "refreshing the existing my-termux block in ~/.bashrc"
+    python - "$BASHRC" "$MARK_BEGIN" "$MARK_END" <<'PY'
+import re, sys
+path, begin, end = sys.argv[1], sys.argv[2], sys.argv[3]
+txt = open(path, "r", encoding="utf-8").read()
+pat = re.compile(r"\n?" + re.escape(begin) + r".*?" + re.escape(end) + r"\n?", re.DOTALL)
+open(path, "w", encoding="utf-8").write(pat.sub("\n", txt))
+PY
 fi
+say "adding prompt, tab-completion and auto-launch to ~/.bashrc"
+{
+    echo ""
+    echo "$MARK_BEGIN"
+    echo "# my-termux: prompt, tab-completion, and a dashboard on interactive shells."
+    echo "#   MYTERMUX_NO_AUTOSTART=1   do not print the dashboard on shell start"
+    echo "#   MYTERMUX_QUICK=1          print it without the self-heal probe (faster)"
+    echo '__mytermux_branch() {'
+    echo '  local b'
+    echo '  b="$(git symbolic-ref --short -q HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)"'
+    echo '  [ -n "$b" ] && printf " (%s)" "$b"'
+    echo '}'
+    echo 'export PS1='"'"'\[\e[36m\]my-termux\[\e[0m\] \[\e[32m\]\w\[\e[0m\]\[\e[35m\]$(__mytermux_branch)\[\e[0m\] $ '"'"''
+    echo 'if [ -f "$HOME/my-termux/app/completions/mytermux.bash" ]; then'
+    echo '    . "$HOME/my-termux/app/completions/mytermux.bash"'
+    echo 'fi'
+    echo 'if [ -z "$MYTERMUX_NO_AUTOSTART" ] && [ -t 1 ] && [[ $- == *i* ]]; then'
+    echo '    if [ -n "$MYTERMUX_QUICK" ]; then'
+    echo '        termux --quick || true'
+    echo '    else'
+    echo '        start-my-termux || true'
+    echo '    fi'
+    echo 'fi'
+    echo "$MARK_END"
+} >> "$BASHRC"
+ok "prompt + completion + auto-launch installed"
 
 # ---------- 9. first-run wizard ----------
 say "first-run wizard (press ENTER to skip any question)"
@@ -177,7 +213,7 @@ else:
 # --- Cloudinary (optional, free tier) ---
 if not cfg.get("cloudinary_cloud_name"):
     print("  Cloudinary sync is OPTIONAL (free tier at https://cloudinary.com/console).")
-    print("  Press ENTER to skip; you can run `my-cloud setup` later.")
+    print("  Press ENTER to skip; you can run `cloud setup` later.")
     cn = ask("Cloudinary cloud_name (optional)")
     if cn:
         ak = ask("Cloudinary api_key")
@@ -196,14 +232,20 @@ PY
 # ---------- 10. done ----------
 say "installation complete!"
 echo ""
-    echo -e "  ${C_BOLD}Try these now:${C_RESET}"
-    echo -e "    ${C_GREEN}termux${C_RESET}         open dashboard"
-    echo -e "    ${C_GREEN}chat${C_RESET}           start chatting"
-    echo -e "    ${C_GREEN}menu${C_RESET}           guided menu"
-    echo -e "    ${C_GREEN}fix${C_RESET}            self-heal"
+echo -e "  ${C_BOLD}Try these now:${C_RESET}"
+echo -e "    ${C_GREEN}termux${C_RESET}          open the dashboard"
+echo -e "    ${C_GREEN}ask${C_RESET} \"...\"       one-shot question, no REPL"
+echo -e "    ${C_GREEN}chat${C_RESET}            full agent session"
+echo -e "    ${C_GREEN}now${C_RESET}             instant status card"
+echo -e "    ${C_GREEN}dev${C_RESET}             battery / storage / termux-api"
+echo -e "    ${C_GREEN}menu${C_RESET}            guided menu"
+echo -e "    ${C_GREEN}termux help${C_RESET}     every command"
+echo ""
+echo -e "  ${C_DIM}Tab-completion is on: try typing ${C_GREEN}med<TAB>${C_RESET}"
+echo -e "  ${C_DIM}Legacy my-* names still work: my-chat, my-menu, my-fix …${C_RESET}"
 echo ""
 echo -e "  ${C_DIM}Config:    ~/my-termux/config/config.yaml${C_RESET}"
-echo -e "  ${C_DIM}Data:      ~/my-termux/{projects,sessions,logs,backups}${C_RESET}"
+echo -e "  ${C_DIM}Data:      ~/my-termux/{projects,sessions,logs,backups,cache}${C_RESET}"
 echo -e "  ${C_DIM}Exports:   /sdcard/MyTermux/exports/${C_RESET}"
 echo ""
 say "restart Termux (or run \`exec bash\`) to see the dashboard on launch."

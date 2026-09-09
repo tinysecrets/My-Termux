@@ -248,6 +248,105 @@ def _tool_web_search(args: Dict) -> str:
     return _clip("\n".join(lines))
 
 
+def _tool_exec_heal(args: Dict) -> str:
+    """Self-healing runner: runs cmd, auto-installs missing deps, retries."""
+    cmd = (args.get("cmd") or "").strip()
+    if not cmd:
+        return "error: missing 'cmd'"
+    cwd = args.get("cwd")
+    timeout = int(args.get("timeout", 30))
+    attempts = int(args.get("attempts", 3))
+    from . import runner as runner_mod
+    from pathlib import Path
+    cwd_p = Path(cwd).expanduser() if cwd else None
+    result = runner_mod.run_with_heal(cmd, cwd=cwd_p, timeout=timeout, max_attempts=attempts)
+    out = f"{result.output}\n---\nattempts: {result.attempts}\nhealed: {result.healed}\n"
+    if result.fixes_applied:
+        out += f"fixes: {', '.join(result.fixes_applied)}\n"
+    out += f"summary: {result.summary()}"
+    return _clip(out, n=6000)
+
+
+def _tool_fix_file(args: Dict) -> str:
+    p = Path(args.get("path", "")).expanduser()
+    err = args.get("error", "") or args.get("error_output", "") or ""
+    if not p.exists():
+        return f"error: file not found: {p}"
+    from . import runner as runner_mod
+    ok, msg = runner_mod.fix_file_syntax(p, err)
+    return msg
+
+
+def _tool_clipboard(args: Dict) -> str:
+    action = (args.get("action") or "get").lower()
+    if action == "get":
+        try:
+            from . import device as dev_mod
+            txt = dev_mod.clipboard_get()
+            if not txt:
+                return "clipboard empty or termux-api not available"
+            return _clip(f"clipboard ({len(txt)} chars):\n{txt}")
+        except Exception as e:
+            return f"error reading clipboard: {e}"
+    elif action == "set":
+        txt = args.get("text", "")
+        if not txt:
+            return "error: missing 'text' for set"
+        try:
+            from . import device as dev_mod
+            ok = dev_mod.clipboard_set(txt)
+            return "clipboard set" if ok else "clipboard set failed (termux-api missing?)"
+        except Exception as e:
+            return f"error: {e}"
+    return "error: action must be get|set"
+
+
+def _tool_speak(args: Dict) -> str:
+    text = (args.get("text") or "").strip()
+    if not text:
+        return "error: missing 'text'"
+    try:
+        from . import voice as voice_mod
+        ok = voice_mod.tts(text)
+        return "spoken" if ok else "tts not available (termux-api missing?)"
+    except Exception as e:
+        return f"tts error: {e}"
+
+
+def _tool_see(args: Dict) -> str:
+    """Capture photo and describe what to do with it."""
+    camera = str(args.get("camera", "0"))
+    try:
+        from . import voice as voice_mod
+        path = voice_mod.capture_photo(camera_id=camera)
+        if not path:
+            return "camera not available (needs termux-api + camera permission)"
+        return f"photo captured: {path} — use media_list or attach it to a session"
+    except Exception as e:
+        return f"camera error: {e}"
+
+
+def _tool_companion(args: Dict) -> str:
+    action = (args.get("action") or "status").lower()
+    try:
+        from . import companion as comp_mod
+        if action == "list":
+            lines = [comp_mod.describe_persona(k) for k in comp_mod.list_personas()]
+            return "\n".join(lines) + f"\n\ncurrent: {comp_mod.current_persona_name()}"
+        if action == "set":
+            name = (args.get("name") or "").strip().lower()
+            if not name:
+                return "error: missing 'name'"
+            p = comp_mod.set_persona(name)
+            return f"now {p['emoji']} {p['name']} — {p['tagline']}: {p['description']}"
+        # status
+        cur = comp_mod.get_persona()
+        cur_name = comp_mod.current_persona_name()
+        return f"{cur['emoji']} {cur['name']} ({cur_name}): {cur['tagline']} — {cur['description']}"
+    except Exception as e:
+        return f"companion error: {e}"
+
+
 def _tool_finish(args: Dict) -> str:
     return "__FINISH__"
 
@@ -335,6 +434,33 @@ REGISTRY: Dict[str, Tool] = {
                        "Best for definitions, docs, quick facts. Returns summaries + links.",
                        {"query": "search text"},
                        _tool_web_search, safety="safe"),
+    "exec_heal": Tool("exec_heal",
+                      "Run a shell command with AUTO-HEAL: if it fails due to missing pip/pkg deps, "
+                      "installs them and retries. Use this INSTEAD of shell when running user code. "
+                      "It fixes ModuleNotFoundError, command not found, etc automatically.",
+                      {"cmd": "command string", "cwd": "optional working dir",
+                       "timeout": "seconds (default 30)", "attempts": "max attempts (default 3)"},
+                      _tool_exec_heal, safety="confirm"),
+    "fix_file": Tool("fix_file",
+                     "Try to auto-fix common syntax errors in a file (unclosed brackets, missing imports).",
+                     {"path": "file path", "error": "error output to guide fix"},
+                     _tool_fix_file, safety="confirm"),
+    "clipboard": Tool("clipboard",
+                      "Read or write Android clipboard via termux-api.",
+                      {"action": "get|set", "text": "text to set (for set)"},
+                      _tool_clipboard, safety="safe"),
+    "speak": Tool("speak",
+                  "Speak text aloud via termux-tts-speak (if termux-api available).",
+                  {"text": "text to speak"},
+                  _tool_speak, safety="safe"),
+    "see": Tool("see",
+                "Capture a photo via termux-camera-photo (if termux-api available).",
+                {"camera": "camera id, 0=back 1=front"},
+                _tool_see, safety="safe"),
+    "companion": Tool("companion",
+                      "Manage companion persona: list, set, status.",
+                      {"action": "list|set|status", "name": "persona name for set"},
+                      _tool_companion, safety="safe"),
     "finish": Tool("finish",
                    "Signal you are done and don't need another turn. Use when you have "
                    "given your final answer + next-step suggestions.",

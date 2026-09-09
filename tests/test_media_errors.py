@@ -78,8 +78,8 @@ def test_media_info_missing_id_prints_friendly_error(capsys):
     assert "[error]" in out, f"expected `[error]` prefix, got: {out!r}"
     assert "media #99999 not found" in out, (
         f"expected 'media #99999 not found', got: {out!r}")
-    assert "my-media list" in out, (
-        f"expected 'my-media list' hint, got: {out!r}")
+    assert "media list" in out, (
+        f"expected 'media list' hint, got: {out!r}")
 
 
 def test_media_rm_missing_id_prints_friendly_error(capsys):
@@ -89,7 +89,7 @@ def test_media_rm_missing_id_prints_friendly_error(capsys):
     assert rc == 1, f"expected exit code 1, got {rc}"
     assert "[error]" in out
     assert "media #99999 not found" in out
-    assert "my-media list" in out
+    assert "media list" in out
 
 
 def test_media_attach_missing_id_prints_friendly_error(capsys):
@@ -99,7 +99,7 @@ def test_media_attach_missing_id_prints_friendly_error(capsys):
     assert rc == 1, f"expected exit code 1, got {rc}"
     assert "[error]" in out
     assert "media #99999 not found" in out
-    assert "my-media list" in out
+    assert "media list" in out
 
 
 def test_media_open_missing_id_prints_friendly_error(capsys):
@@ -138,7 +138,7 @@ def test_media_list_empty_shows_helpful_tip(capsys):
     assert rc == 0, f"expected exit code 0, got {rc}"
     assert "(no items)" in out
     assert "tip:" in out
-    assert "my-media add" in out
+    assert "media add" in out
 
 
 def test_media_list_after_add_shows_columns(tmp_path, capsys):

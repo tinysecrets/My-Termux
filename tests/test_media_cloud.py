@@ -398,7 +398,11 @@ def test_install_script_has_media_and_cloud():
 
 
 def test_dispatch_script_maps_new_commands():
-    root = Path(__file__).resolve().parents[1]
-    script = (root / "bin" / "mytermux-dispatch").read_text()
-    assert "my-media" in script
-    assert "my-cloud" in script
+    """`media` and `cloud` must resolve through the dispatcher (as do their
+    legacy `my-` aliases)."""
+    from tests.helpers import dispatch_as
+
+    for name in ("media", "cloud", "my-media", "my-cloud"):
+        rc, out, err = dispatch_as(name)
+        assert rc == 0, f"{name} exited {rc}: {out}"
+        assert out == name.replace("my-", ""), f"{name} -> {out!r}"
