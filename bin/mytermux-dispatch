@@ -1,38 +1,71 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-# Thin dispatcher for all my-termux CLI commands.
-# Sourced/installed once by install.sh; each my-* binary is a symlink to this file
-# (or a copy) whose $0 name determines which subcommand to run.
+# Thin dispatcher for every my-termux command.
+#
+# install.sh symlinks each name below to this one file; $0 decides what runs.
+# Both the canonical names (`chat`) and the legacy `my-` prefixed names
+# (`my-chat`) are accepted, so nothing you have ever typed stops working.
+#
+# KEEP IN SYNC WITH mytermux/commands.py — tests/test_commands.py enforces it.
 
 set -e
 
 APP_DIR="${MYTERMUX_APP_DIR:-$HOME/my-termux/app}"
 PY="${MYTERMUX_PYTHON:-python}"
 
-# Determine invocation name and normalize it so both old `my-` prefixed
-# names and new unprefixed names work. Examples: my-chat -> chat, chat -> chat
 self="$(basename "$0")"
-# strip leading start- and my- prefixes if present
-norm="${self#start-}"
-norm="${norm#my-}"
 
-case "$norm" in
-    termux|termux-dispatch|my-termux|dashboard) sub="dashboard" ;;
-    start)   sub="start" ;;
-    chat)    sub="chat" ;;
-    menu)    sub="menu" ;;
-    status)  sub="status" ;;
-    scan)    sub="scan" ;;
-    sync)    sub="sync" ;;
-    fix)     sub="fix" ;;
-    export)  sub="export" ;;
-    import)  sub="import" ;;
-    resume)  sub="resume" ;;
-    media)   sub="media" ;;
-    cloud)   sub="cloud" ;;
-    *)       sub="dashboard" ;;
-esac
+# `start-my-termux` is the name ~/.bashrc calls on shell startup: it means
+# "do the full startup", not just "print the dashboard".
+if [ "$self" = "start-my-termux" ]; then
+    sub="start"
+else
+    norm="${self#my-}"          # my-chat -> chat
+    case "$norm" in
+        termux|termux-dispatch|mytermux|mytermux-dispatch|my-termux|dashboard) sub="dashboard" ;;
+        start)   sub="start" ;;
+        now)     sub="now" ;;
+        chat)    sub="chat" ;;
+        ask)     sub="ask" ;;
+        resume)  sub="resume" ;;
+        menu)    sub="menu" ;;
+        status)  sub="status" ;;
+        dev)     sub="dev" ;;
+        scan)    sub="scan" ;;
+        sync)    sub="sync" ;;
+        fix)     sub="fix" ;;
+        export)  sub="export" ;;
+        import)  sub="import" ;;
+        media)   sub="media" ;;
+        cloud)   sub="cloud" ;;
+        upgrade) sub="upgrade" ;;
+        help)    sub="help" ;;
+        *)
+            # An unknown name should say so, not silently print a dashboard.
+            printf '%s\n' "my-termux: unknown command '$self'." >&2
+            printf '%s\n' "Run 'termux help' for the full list." >&2
+            exit 2
+            ;;
+    esac
+fi
 
 # make sure the source tree is importable
 export PYTHONPATH="$APP_DIR:${PYTHONPATH:-}"
+
+# `termux` is the umbrella name, so `termux chat`, `termux media list` and
+# `termux help` must work too — not just bare `termux`.
+if [ "$sub" = "dashboard" ] && [ "$#" -gt 0 ]; then
+    case "$1" in
+        dashboard|start|now|chat|ask|resume|menu|status|dev|scan|sync|fix|export|import|media|cloud|upgrade|help)
+            sub="$1"
+            shift
+            ;;
+    esac
+fi
+
+# Test hook: print the resolved subcommand instead of exec'ing python.
+if [ "${MYTERMUX_DISPATCH_DRYRUN:-0}" = "1" ]; then
+    printf '%s\n' "$sub"
+    exit 0
+fi
 
 exec "$PY" -m mytermux "$sub" "$@"

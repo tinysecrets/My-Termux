@@ -5,6 +5,7 @@ so that the CLI still boots on a broken Python env (self-heal can then fix it).
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict
 

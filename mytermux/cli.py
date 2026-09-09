@@ -10,7 +10,9 @@ import sys
 from pathlib import Path
 
 from . import chat as chat_mod
-from . import db, export as export_mod, git_ops, heal as heal_mod, menu, paths, scanner, ui
+from . import (db, device as device_mod, export as export_mod, git_ops,
+               heal as heal_mod, menu, paths, scanner, startup, ui)
+from .commands import cmd, describe
 from .config import load_config, save_config
 
 
@@ -25,36 +27,105 @@ def _bootstrap() -> None:
     media._ensure_schema()
 
 
-def _run_startup_heal() -> None:
-    report = heal_mod.heal()
-    fails = [c for c in report["after"] if not c["ok"] and "optional" not in c["name"]]
+def _run_startup_heal(force: bool = False) -> dict:
+    """Report health, but only actually probe when the cached verdict is stale.
+
+    Opening a shell should feel instant; `heal()` can shell out to pip, so it
+    runs at most once per heal window and is replayed from cache otherwise.
+    """
+    report = startup.heal_if_stale(force=force)
+    issues = startup.outstanding_issues(report)
+    fails = issues["required"]
+    tag = "" if not report.get("from_cache") else f" (cached {report.get('age_hours', 0):g}h ago)"
+
     if fails:
-        print(f"[my-termux] startup notice: {len(fails)} issue(s) remain — run `my-fix`.")
+        print(f"[my-termux] startup notice: {len(fails)} issue(s) remain — run `{cmd('fix')}`.")
         for item in fails:
             print(f"  - {item['name']}: {item['detail'] or 'missing'}")
     else:
-        print("[my-termux] startup ready: required checks passed.")
+        print(f"[my-termux] startup ready: required checks passed{tag}.")
 
-    optional_missing = [c for c in report["after"] if not c["ok"] and "optional" in c["name"]]
-    if optional_missing:
+    optional_missing = issues["optional"]
+    if optional_missing and force:
         print("[my-termux] optional items still missing:")
         for item in optional_missing:
             print(f"  - {item['name']}: {item['detail'] or 'missing'}")
+    return report
 
 
 def cmd_dashboard(args) -> int:
     _bootstrap()
-    _run_startup_heal()
-    ui.dashboard(show_banner=True)
+    quick = bool(getattr(args, "quick", False))
+    if not quick:
+        _run_startup_heal()
+    ctx = ui.build_context()
+    ui.dashboard(show_banner=True, ctx=ctx)
+    startup.mark_opened()
     return 0
 
 
 def cmd_start(args) -> int:
-    """Full startup: heal (if needed) then dashboard."""
+    """Full startup: heal (if stale) then dashboard."""
     _bootstrap()
     _run_startup_heal()
-    ui.dashboard(show_banner=True)
+    ctx = ui.build_context()
+    ui.dashboard(show_banner=True, ctx=ctx)
+    startup.mark_opened()
     return 0
+
+
+def cmd_now(args) -> int:
+    """Instant status card. No heal, no pip probe, no network."""
+    _bootstrap()
+    ctx = ui.build_context()
+    ui.dashboard(show_banner=False, ctx=ctx)
+    return 0
+
+
+def cmd_dev(args) -> int:
+    """Show what the phone is reporting. Handy when the dashboard looks empty."""
+    _bootstrap()
+    device_mod.clear_cache()
+    snap = device_mod.snapshot(use_cache=False)
+    print("== device ==")
+    print(f"  termux:        {'yes' if snap['is_termux'] else 'no'}")
+    print(f"  termux-api:    {'yes' if snap['api'] else 'no (install the Termux:API app + `pkg install termux-api`)'}")
+    batt = snap.get("battery") or {}
+    if batt:
+        print(f"  battery:       {device_mod.battery_line(snap)}")
+        if batt.get("temperature") is not None:
+            print(f"  temperature:   {batt['temperature']}°C")
+        if batt.get("health"):
+            print(f"  health:        {batt['health']}")
+    else:
+        print("  battery:       unavailable (termux-api not reachable)")
+    sto = snap.get("storage") or {}
+    if sto:
+        print(f"  disk:          {device_mod.human_bytes(sto['free'])} free of "
+              f"{device_mod.human_bytes(sto['total'])} ({sto['percent_free']}% free) at {sto['path']}")
+    print(f"  screen width:  {snap['width']} cols")
+    clip = device_mod.clipboard_get()
+    print(f"  clipboard:     {repr(clip[:40] + '…') if clip and len(clip) > 40 else (repr(clip) if clip else '-')}")
+    return 0
+
+
+def cmd_ask(args) -> int:
+    """One-shot question: run one agent turn and exit. Made for phone keyboards."""
+    _bootstrap()
+    question = " ".join(getattr(args, "question", None) or []).strip()
+    if not question:
+        print(f"[error] give me a question, e.g.  {cmd('ask')} \"what does this repo do?\"")
+        return 1
+    from .memory import Conversation
+    conv = Conversation()
+    try:
+        from . import agent
+        answer = agent.run_turn(conv, question)
+    finally:
+        conv.close("one-shot ask")
+    # a non-zero exit lets `ask` be used in scripts and pipelines; the error
+    # itself was already printed by the agent loop
+    return 0 if (answer or "").strip() else 1
 
 
 def cmd_chat(args) -> int:
@@ -69,7 +140,15 @@ def cmd_menu(args) -> int:
 
 def cmd_status(args) -> int:
     _bootstrap()
-    ui.dashboard(show_banner=False)
+    ctx = ui.build_context()
+    ui.dashboard(show_banner=False, ctx=ctx)
+    return 0
+
+
+def cmd_help(args) -> int:
+    print("my-termux — commands\n")
+    print(describe())
+    print("\nLegacy `my-` prefixed names still work: my-chat, my-menu, my-fix, ...")
     return 0
 
 
@@ -193,7 +272,7 @@ def cmd_media(args) -> int:
         if str(src).startswith("<") or "<" in str(src) or ">" in str(src):
             print(f"[error] '{src}' looks like a placeholder. "
                   f"Replace it with a real filename, e.g.\n"
-                  f"        my-media add ~/storage/shared/DCIM/Camera/IMG_20240115_143022.jpg\n"
+                  f"        media add ~/storage/shared/DCIM/Camera/IMG_20240115_143022.jpg\n"
                   f"        (use Tab-completion: type the folder + start of name, then press Tab)")
             return 1
         if not src.exists():
@@ -203,7 +282,7 @@ def cmd_media(args) -> int:
             return 1
         if src.is_dir():
             print(f"[error] '{src}' is a directory, not a file.")
-            print("  add one file at a time, e.g. my-media add <path>/photo.jpg")
+            print("  add one file at a time, e.g. media add <path>/photo.jpg")
             return 1
         try:
             row = media.add(src, kind=args.kind or "", tags=args.tags or "",
@@ -222,7 +301,7 @@ def cmd_media(args) -> int:
         rows = media.list_media(kind=args.kind or "", project=args.project or "",
                                 limit=args.limit)
         if not rows:
-            print("[media] (no items)  tip: `my-media add <path-to-file>` to import your first item")
+            print("[media] (no items)  tip: `media add <path-to-file>` to import your first item")
             return 0
         print(f"{'ID':>4}  {'KIND':<6} {'SIZE':>7}  {'CLOUD':<6} NAME")
         for r in rows:
@@ -236,7 +315,7 @@ def cmd_media(args) -> int:
         try:
             row = media.get(args.id)
         except KeyError as e:
-            print(f"[error] {e}. Use `my-media list` to see valid IDs.")
+            print(f"[error] {e}. Use `media list` to see valid IDs.")
             return 1
         for k, v in row.items():
             print(f"  {k}: {v}")
@@ -246,7 +325,7 @@ def cmd_media(args) -> int:
         try:
             media.open_with_android(args.id)
         except KeyError as e:
-            print(f"[error] {e}. Use `my-media list` to see valid IDs.")
+            print(f"[error] {e}. Use `media list` to see valid IDs.")
             return 1
         return 0
 
@@ -254,7 +333,7 @@ def cmd_media(args) -> int:
         try:
             row = media.remove(args.id, keep_file=bool(args.keep_file))
         except KeyError as e:
-            print(f"[error] {e}. Use `my-media list` to see valid IDs.")
+            print(f"[error] {e}. Use `media list` to see valid IDs.")
             return 1
         print(f"[media] removed #{row['id']}")
         return 0
@@ -264,7 +343,7 @@ def cmd_media(args) -> int:
             row = media.attach(args.id, session_id=args.session,
                                project=args.project or "", tags=args.tags or "")
         except KeyError as e:
-            print(f"[error] {e}. Use `my-media list` to see valid IDs.")
+            print(f"[error] {e}. Use `media list` to see valid IDs.")
             return 1
         print(f"[media] attached #{row['id']} -> "
               f"session={row.get('session_id')} project={row.get('project')} tags={row.get('tags')}")
@@ -375,16 +454,33 @@ def cmd_cloud(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="termux", description="Termux AI workspace")
+    p = argparse.ArgumentParser(
+        prog="termux",
+        description="Termux AI workspace — your phone as an agent terminal.",
+        epilog="Run `termux help` for the full list, or `menu` for a guided picker.",
+    )
     sub = p.add_subparsers(dest="cmd")
 
-    sub.add_parser("dashboard").set_defaults(func=cmd_dashboard)
-    sub.add_parser("start").set_defaults(func=cmd_start)
-    sub.add_parser("chat").set_defaults(func=cmd_chat)
-    sub.add_parser("menu").set_defaults(func=cmd_menu)
-    sub.add_parser("status").set_defaults(func=cmd_status)
-    sub.add_parser("resume").set_defaults(func=cmd_resume)
-    sub.add_parser("fix").set_defaults(func=cmd_fix)
+    dash_p = sub.add_parser("dashboard", help="banner + status + next actions")
+    dash_p.add_argument("--quick", action="store_true",
+                        help="skip the self-heal probe (faster)")
+    dash_p.set_defaults(func=cmd_dashboard)
+
+    sub.add_parser("start", help="full startup: self-heal then dashboard").set_defaults(func=cmd_start)
+    sub.add_parser("now", help="instant status card — no heal, no network").set_defaults(func=cmd_now)
+    sub.add_parser("dev", help="what your phone reports: battery, storage, API").set_defaults(func=cmd_dev)
+    sub.add_parser("chat", help="interactive agent chat").set_defaults(func=cmd_chat)
+
+    ask_p = sub.add_parser("ask", help="one-shot question, prints the answer and exits")
+    ask_p.add_argument("question", nargs="*",
+                       help='e.g. ask "what does this repo do?"')
+    ask_p.set_defaults(func=cmd_ask)
+
+    sub.add_parser("menu", help="numeric guided menu").set_defaults(func=cmd_menu)
+    sub.add_parser("status", help="status card without the banner").set_defaults(func=cmd_status)
+    sub.add_parser("resume", help="resume the last chat session").set_defaults(func=cmd_resume)
+    sub.add_parser("fix", help="diagnose + self-repair").set_defaults(func=cmd_fix)
+    sub.add_parser("help", help="list all commands").set_defaults(func=cmd_help)
 
     upgrade_p = sub.add_parser("upgrade")
     upgrade_p.add_argument("path", nargs="?", default=".")

@@ -66,6 +66,19 @@ def run() -> int:
             chat.run()
         elif action == "resume":
             chat.run(resume=True)
+        elif action == "ask":
+            q = prompt("question")
+            if q:
+                from .memory import Conversation
+                from . import agent
+                conv = Conversation()
+                try:
+                    agent.run_turn(conv, q)
+                finally:
+                    conv.close("one-shot ask")
+        elif action == "dev":
+            from . import cli
+            cli.cmd_dev(None)
         elif action == "scan":
             p = prompt("path to scan", ".")
             info = scanner.scan(p)  # type: ignore[arg-type]

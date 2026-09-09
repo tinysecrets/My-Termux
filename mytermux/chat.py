@@ -21,6 +21,11 @@ commands inside chat:
   /agent         toggle back to agent mode (default)
   /tools         list the tools the agent can use
   /quit or /q    exit chat
+
+outside chat, from the shell:
+  ask "..."      one-shot question — no REPL, prints the answer and exits
+  now            instant status card
+  dev            battery / storage / termux-api state
 """
 
 
