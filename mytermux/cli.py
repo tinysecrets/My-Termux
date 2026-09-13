@@ -362,9 +362,13 @@ def cmd_clip(args) -> int:
     conv = Conversation()
     try:
         from . import agent
-        agent.run_turn(conv, question)
+        answer = agent.run_turn(conv, question)
     finally:
         conv.close("clip")
+
+    if not (answer or "").strip():
+        print("[clip] agent returned no answer")
+        return 1
     return 0
 
 
